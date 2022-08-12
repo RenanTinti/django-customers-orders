@@ -3,6 +3,9 @@ from django.http import HttpResponse
 
 from .models import *
 from .forms import OrderForm
+from .filters import OrderFilter
+
+from django.core.paginator import Paginator
 # Create your views here.
 
 def home(request):
@@ -27,9 +30,18 @@ def home(request):
 
 def product(request):
 
-    products = Product.objects.all()
+    product_list = Product.objects.all()
 
-    return render(request, 'accounts/product.html', {'products': products})
+    p = Paginator(Product.objects.all(), 2)
+    page = request.GET.get('page')
+    products = p.get_page(page)
+
+    context = {
+        'product_list': product_list,
+        'products': products,
+    }
+
+    return render(request, 'accounts/product.html', context)
 
 def customer(request, pk_test):
 
@@ -37,10 +49,14 @@ def customer(request, pk_test):
     orders = customer.order_set.all()
     order_count = orders.count()
 
+    my_filter = OrderFilter(request.GET, queryset=orders)
+    orders = my_filter.qs
+
     context = {
         'customer': customer,
         'orders': orders,
         'order_count': order_count,
+        'my_filter': my_filter,
     }
 
     return render(request, 'accounts/customer.html', context)
