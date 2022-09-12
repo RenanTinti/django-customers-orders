@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 
+from accounts.decorators import unauthenticated_user
+
 from .models import *
 from .forms import OrderForm, CreateUserForm
 from .filters import OrderFilter
@@ -8,8 +10,17 @@ from .filters import OrderFilter
 from django.core.paginator import Paginator
 
 from django.contrib.auth.forms import UserCreationForm
+
+from django.contrib import messages
+
+from django.contrib.auth import authenticate, login, logout
+
+from django.contrib.auth.decorators import login_required
+
+
 # Create your views here.
 
+@unauthenticated_user
 def register_page(request):
 
     form = CreateUserForm()
@@ -18,6 +29,10 @@ def register_page(request):
         form = CreateUserForm(request.POST)
         if form.is_valid():
             form.save()
+            user = form.cleaned_data.get('username')
+            messages.success(request, 'Account was created for ' + user)
+
+            return redirect('login')
 
     context = {
         'form': form,
@@ -25,7 +40,21 @@ def register_page(request):
 
     return render(request, 'accounts/register.html', context)
 
+@unauthenticated_user
 def login_page(request):
+
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+
+        else:
+            messages.info(request, 'Username or password is incorrect')
 
     context = {
         
@@ -33,6 +62,13 @@ def login_page(request):
 
     return render(request, 'accounts/login.html', context)
 
+def logout_user(request):
+
+    logout(request)
+
+    return redirect('login')
+
+@login_required(login_url='login')
 def home(request):
     orders = Order.objects.all()
     customers = Customer.objects.all()
@@ -53,6 +89,7 @@ def home(request):
 
     return render(request, 'accounts/dashboard.html', context=context)
 
+@login_required(login_url='login')
 def product(request):
 
     product_list = Product.objects.all()
@@ -68,6 +105,7 @@ def product(request):
 
     return render(request, 'accounts/product.html', context)
 
+@login_required(login_url='login')
 def customer(request, pk_test):
 
     customer = Customer.objects.get(id=pk_test)
@@ -86,6 +124,7 @@ def customer(request, pk_test):
 
     return render(request, 'accounts/customer.html', context)
 
+@login_required(login_url='login')
 def create_order(request):
 
     form = OrderForm()
@@ -105,6 +144,7 @@ def create_order(request):
 
     return render(request, 'accounts/order_form.html', context)
 
+@login_required(login_url='login')
 def update_order(request, pk):
 
     order = Order.objects.get(id=pk)
@@ -125,6 +165,7 @@ def update_order(request, pk):
 
     return render(request, 'accounts/order_form.html', context)
 
+@login_required(login_url='login')
 def delete_order(request, pk):
 
     order = Order.objects.get(id=pk)
